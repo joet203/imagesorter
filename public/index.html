@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Categorizer</title>
+    <style>
+        img {
+            max-height: 100vh;
+            object-fit: contain;
+        }
+    </style>
+</head>
+<body>
+    <h2 id="filenameDisplay"></h2>
+    <h3 id="previousImageMessage"></h3>
+    <img id="imageDisplay" src="" alt="Loading...">
+    <h3 id="preloadedCount"></h3>
+
+    <form id="categorizeForm" style="display: none;">
+        <input type="hidden" name="category" id="category">
+        <input type="hidden" name="filename" id="filename">
+    </form>
+
+    <script>document.addEventListener('DOMContentLoaded', () => {
+        const imageDisplay = document.getElementById('imageDisplay');
+        const categoryInput = document.getElementById('category');
+        const filenameInput = document.getElementById('filename');
+        const filenameDisplay = document.getElementById('filenameDisplay');
+        const previousImageMessage = document.getElementById('previousImageMessage');
+        const preloadedCount = document.getElementById('preloadedCount');
+        const imageQueue = [];
+        
+        async function loadImages(count = 20) {
+            const response = await fetch(`/api/image?count=${count}`);
+            const images = await response.json();
+            
+            const loadImagePromises = images.map(image => {
+                return new Promise((resolve) => {
+                    const img = new Image();
+                    img.src = image.imageUrl;
+                    img.dataset.filename = image.filename;
+                    img.onload = () => {
+                        imageQueue.push(img);
+                        resolve();
+                    };
+                });
+            });
+
+            await Promise.all(loadImagePromises);
+            preloadedCount.textContent = `Preloaded images: ${imageQueue.length}`;
+
+            if (imageDisplay.src === '') {
+                displayNextImage();
+            }
+        }
+
+        function displayNextImage() {
+            if (imageQueue.length === 0) {
+                loadImages().then(() => {
+                    if (imageQueue.length > 0) {
+                        displayNextImage();
+                    }
+                });
+                return;
+            }
+
+            const nextImage = imageQueue.shift();
+            imageDisplay.src = nextImage.src;
+            filenameInput.value = nextImage.dataset.filename;
+            filenameDisplay.textContent = `Filename: ${nextImage.dataset.filename}`;
+            preloadedCount.textContent = `Preloaded images: ${imageQueue.length}`;
+
+            // Load more images if the queue is running low
+            if (imageQueue.length <= 5) {
+                loadImages();
+            }
+        }
+
+        
+        async function categorizeImage(category) {
+            categoryInput.value = category;
+            
+            const formData = new FormData(document.getElementById('categorizeForm'));
+            const response = await fetch('/api/categorize', { method: 'POST', body: formData });
+            const result = await response.text();
+            
+            previousImageMessage.textContent = `Moved previous image to category ${category}. ${result}`;
+            
+            displayNextImage();
+        }
+        
+        document.addEventListener('keydown', (event) => {
+            const category = (String)(event.key);
+            categorizeImage(category);
+        });
+        
+        loadImages();
+    });
+
+    </script>
+</body>
+</html>
