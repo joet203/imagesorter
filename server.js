@@ -4,8 +4,8 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-const imageDir = 'S:/sdsd'; // Change this to your image directory
-const categorizedDir = 'S:/categorized'; // Change this to your categorized directory
+const imageDir = 'S:/sdsd';  
+const categorizedDir = 'S:/categorized';  
 
 // Update the middleware to serve files from the new directory
 app.use('/images', express.static(imageDir));
